@@ -1,7 +1,7 @@
 import models.StockClosePrice;
-import services.storage.SqlStockClosePrices;
-import services.storage.datasources.DataSourceProvider;
 import services.storage.datasources.PostgresqlDataSource;
+import services.storage.dates.SqlBusinessDaysStorage;
+import services.storage.prices.SqlStockClosePrices;
 
 import java.time.LocalDate;
 import java.util.Arrays;
@@ -15,14 +15,20 @@ public class Main {
 
         //TODO: what do you think about using "var" instead of declaring using the type.
 
-        final DataSourceProvider dataSource = new PostgresqlDataSource();
-        final SqlStockClosePrices sqlStockClosePrices = new SqlStockClosePrices(dataSource);
+        //TODO: how to make this better.
+        final SqlStockClosePrices sqlStockClosePrices = new SqlStockClosePrices(
+                new PostgresqlDataSource(),
+                new SqlBusinessDaysStorage(new PostgresqlDataSource()));
 
         final var tickers = new HashSet<String>(Arrays.asList("TWTR", "AAPL"));
-        LocalDate date = LocalDate.of(2019, 12, 30);
+        LocalDate date = LocalDate.of(2019, 12, 31);
 
-        List<StockClosePrice> stockPrices = sqlStockClosePrices.getPricesByDateAndTickers(date, tickers);
-        stockPrices.forEach(System.out::println);
+//        List<StockClosePrice> stockPrices = sqlStockClosePrices.getPricesByDateAndTickers(date, tickers);
+        List<StockClosePrice> stockPricesCurrent = sqlStockClosePrices.getPricesByDate(date);
+        List<StockClosePrice> stockPricesPrevious = sqlStockClosePrices.getPricesPreviousDate(date);
+
+        System.out.println(stockPricesCurrent);
+        System.out.println(stockPricesPrevious);
 
     }
 }

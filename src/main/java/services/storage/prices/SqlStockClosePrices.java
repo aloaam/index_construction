@@ -1,8 +1,8 @@
-package services.storage;
+package services.storage.prices;
 
 import models.StockClosePrice;
 import services.storage.datasources.DataSourceProvider;
-import services.storage.datasources.MySqlDataSource;
+import services.storage.dates.BusinessDaysStorage;
 
 import java.sql.*;
 import java.time.LocalDate;
@@ -12,11 +12,12 @@ import java.util.Set;
 
 public class SqlStockClosePrices {
 
+    private DataSourceProvider sqlDataSource;
+    private BusinessDaysStorage sqlBusinessDays;
 
-    private DataSourceProvider dataSource;
-
-    public SqlStockClosePrices(DataSourceProvider dataSource) {
-        this.dataSource = dataSource;
+    public SqlStockClosePrices(DataSourceProvider sqlDataSource, BusinessDaysStorage sqlBusinessDays) {
+        this.sqlDataSource = sqlDataSource;
+        this.sqlBusinessDays = sqlBusinessDays;
     }
 
     //TODO: ask how to design a query which can take a parameter or none, for example
@@ -28,7 +29,7 @@ public class SqlStockClosePrices {
 
         String sqlQuery = "SELECT * FROM stock_close_prices WHERE date = ? AND ticker = ANY(?)";
 
-        try (Connection connection = dataSource.getDataSource();
+        try (Connection connection = sqlDataSource.getDataSource();
              PreparedStatement preparedStatement = connection.prepareStatement(sqlQuery)) {
 
             preparedStatement.setDate(1, Date.valueOf(date));
@@ -45,6 +46,33 @@ public class SqlStockClosePrices {
             throw new RuntimeException("Unable to retrieve prices for date, tickers", e);
         }
 
+    }
+
+    public List<StockClosePrice> getPricesByDate(LocalDate date) {
+
+        String sqlQuery = "SELECT * FROM stock_close_prices WHERE date = ?";
+
+        try (Connection connection = sqlDataSource.getDataSource();
+             PreparedStatement preparedStatement = connection.prepareStatement(sqlQuery)) {
+
+            preparedStatement.setDate(1, Date.valueOf(date));
+            ResultSet resultSet = preparedStatement.executeQuery();
+
+            final List<StockClosePrice> stockPrices = new ArrayList<>();
+            while (resultSet.next()) {
+                stockPrices.add(buildStockClosePriceFrom(resultSet));
+            }
+            return stockPrices;
+
+        } catch (Exception e) {
+            throw new RuntimeException("Unable to retrieve prices for date, tickers", e);
+        }
+
+    }
+
+    public List<StockClosePrice> getPricesPreviousDate(LocalDate date) {
+
+        return getPricesByDate(sqlBusinessDays.getPreviousBusinessDay(date));
     }
 
     private StockClosePrice buildStockClosePriceFrom(ResultSet resultSet) throws SQLException {
